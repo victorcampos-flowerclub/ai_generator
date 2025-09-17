@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-robot me-2"></i>Criar Novo Agente</h3>
+            </div>
+            <div class="card-body">
+                <form id="createAgentForm" enctype="multipart/form-data">
+                    <!-- Passo 1: Informações Básicas -->
+                    <div class="step" id="step1">
+                        <h4>Passo 1: Informações Básicas</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Nome do Agente *</label>
+                                    <input type="text" class="form-control" name="agent_name" required>
+                                    <div class="form-text">Ex: Flor - CTO AI</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Agente *</label>
+                                    <select class="form-select" name="agent_type" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="cto">CTO AI</option>
+                                        <option value="medico">Médico AI</option>
+                                        <option value="executivo">Executivo AI</option>
+                                        <option value="vendas">Vendas AI</option>
+                                        <option value="suporte">Suporte AI</option>
+                                        <option value="custom">Personalizado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Descrição</label>
+                            <textarea class="form-control" name="description" rows="3" 
+                                placeholder="Descreva brevemente a função deste agente..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Estilo de Conversa *</label>
+                            <select class="form-select" name="conversation_style" required>
+                                <option value="">Selecione...</option>
+                                <option value="professional">Profissional</option>
+                                <option value="friendly">Amigável</option>
+                                <option value="technical">Técnico</option>
+                                <option value="casual">Casual</option>
+                                <option value="formal">Formal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Passo 2: Prompt Template -->
+                    <div class="step d-none" id="step2">
+                        <h4>Passo 2: Template de Prompt</h4>
+                        <div class="mb-3">
+                            <label class="form-label">Prompt Base do Agente *</label>
+                            <textarea class="form-control" name="prompt_template" rows="8" required
+                                placeholder="Você é um assistente especializado em..."></textarea>
+                            <div class="form-text">
+                                Este será o prompt base que define a personalidade e especialização do agente.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Passo 3: Documentos -->
+                    <div class="step d-none" id="step3">
+                        <h4>Passo 3: Base de Conhecimento</h4>
+                        <div class="mb-3">
+                            <label class="form-label">Upload de Documentos</label>
+                            <input type="file" class="form-control" name="documents" multiple 
+                                accept=".pdf,.txt,.md,.doc,.docx">
+                            <div class="form-text">
+                                Faça upload dos documentos que servirão como base de conhecimento do agente.
+                                Formatos aceitos: PDF, TXT, MD, DOC, DOCX
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">URL da Documentação (Opcional)</label>
+                            <input type="url" class="form-control" name="doc_url" 
+                                placeholder="https://exemplo.com/documentacao">
+                            <div class="form-text">
+                                URL de documentação online que será processada automaticamente.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navegação -->
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" id="prevBtn" onclick="changeStep(-1)">Anterior</button>
+                        <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">Próximo</button>
+                        <button type="submit" class="btn btn-success d-none" id="submitBtn">
+                            <i class="fas fa-rocket me-2"></i>Criar Agente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStep = 1;
+const totalSteps = 3;
+
+function changeStep(n) {
+    showStep(currentStep += n);
+}
+
+function showStep(n) {
+    const steps = document.getElementsByClassName("step");
+    
+    if (n > totalSteps) currentStep = totalSteps;
+    if (n < 1) currentStep = 1;
+    
+    for (let i = 0; i < steps.length; i++) {
+        steps[i].classList.add("d-none");
+    }
+    
+    steps[currentStep - 1].classList.remove("d-none");
+    
+    // Atualizar botões
+    document.getElementById("prevBtn").style.display = currentStep === 1 ? "none" : "inline-block";
+    document.getElementById("nextBtn").style.display = currentStep === totalSteps ? "none" : "inline-block";
+    document.getElementById("submitBtn").classList.toggle("d-none", currentStep !== totalSteps);
+}
+
+// Inicializar
+showStep(currentStep);
+
+// Submit do formulário
+document.getElementById('createAgentForm').onsubmit = function(e) {
+    e.preventDefault();
+    // Aqui vamos implementar o envio via AJAX
+    alert('Funcionalidade de criação será implementada no próximo passo!');
+};
+</script>
+{% endblock %}

@@ -1,0 +1,475 @@
+#!/usr/bin/env python3
+"""
+AI Agent Generator - Backend Principal
+Sistema para criar e gerenciar agentes de IA especializados
+"""
+
+import os
+import json
+import requests
+from datetime import datetime
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
+from google.cloud import secretmanager, bigquery, storage
+import tempfile
+import subprocess
+
+app = Flask(__name__)
+CORS(app)
+
+# Configurações
+PROJECT_ID = 'flower-ai-generator'
+REGION = 'southamerica-east1'
+CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+
+class AgentGenerator:
+    def __init__(self):
+        self.bq_client = bigquery.Client(project=PROJECT_ID)
+        self.storage_client = storage.Client(project=PROJECT_ID)
+        self.bucket_name = f'{PROJECT_ID}-agents-docs'
+        
+    def get_claude_api_key(self):
+        """Obter API key do Claude do Secret Manager"""
+        try:
+            secret_client = secretmanager.SecretManagerServiceClient()
+            name = f"projects/{PROJECT_ID}/secrets/claude-api-key/versions/latest"
+            response = secret_client.access_secret_version(request={"name": name})
+            return response.payload.data.decode("UTF-8").strip()
+        except Exception as e:
+            print(f"Erro ao obter API key: {e}")
+            return None
+    
+    def generate_agent_prompt(self, config):
+        """Usar Claude para gerar prompt personalizado do agente"""
+        try:
+            api_key = self.get_claude_api_key()
+            if not api_key:
+                return None
+                
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01'
+            }
+            
+            prompt_request = f"""
+Gere um prompt de sistema profissional para um agente de IA com as seguintes características:
+
+Nome: {config['name']}
+Tipo: {config['type']}
+Especialização: {config['specialization']}
+Estilo de conversa: {config['conversation_style']}
+
+O prompt deve:
+1. Definir claramente a personalidade e expertise
+2. Estabelecer o tom de conversa apropriado
+3. Incluir conhecimentos específicos da área
+4. Ser profissional e eficaz
+
+Retorne apenas o prompt, sem explicações adicionais.
+"""
+            
+            data = {
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 1000,
+                "messages": [{"role": "user", "content": prompt_request}]
+            }
+            
+            response = requests.post(CLAUDE_API_URL, headers=headers, json=data, timeout=60)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result['content'][0]['text']
+            else:
+                print(f"Erro Claude API: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            print(f"Erro ao gerar prompt: {e}")
+            return None
+    
+    def create_agent_code(self, config, generated_prompt):
+        """Gerar código do agente baseado na configuração"""
+        agent_id = config['name'].lower().replace(' ', '-').replace('.', '')
+        
+        # Template do main.py do agente
+        main_py_template = f'''
+import os
+import re
+import requests
+import json
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+from google.cloud import secretmanager
+
+app = Flask(__name__)
+CORS(app, resources={{r"/*": {{"origins": "*"}}}})
+
+PROJECT_ID = '{PROJECT_ID}'
+AGENT_ID = '{agent_id}'
+
+def get_claude_api_key():
+    try:
+        secret_client = secretmanager.SecretManagerServiceClient()
+        name = f"projects/{{PROJECT_ID}}/secrets/claude-api-key/versions/latest"
+        response = secret_client.access_secret_version(request={{"name": name}})
+        return response.payload.data.decode("UTF-8").strip()
+    except Exception as e:
+        print(f"Erro ao obter API key: {{e}}")
+        return None
+
+def call_claude_api(api_key, system_prompt, user_message):
+    try:
+        headers = {{
+            'Content-Type': 'application/json',
+            'x-api-key': api_key,
+            'anthropic-version': '2023-06-01'
+        }}
+        
+        data = {{
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 1500,
+            "system": system_prompt,
+            "messages": [{{"role": "user", "content": user_message}}]
+        }}
+        
+        response = requests.post('https://api.anthropic.com/v1/messages', headers=headers, json=data, timeout=60)
+        
+        if response.status_code == 200:
+            return response.json()['content'][0]['text']
+        else:
+            return f"Erro na API Claude: {{response.status_code}}"
+    except Exception as e:
+        return f"Erro: {{str(e)}}"
+
+@app.route('/')
+def index():
+    return render_template('chat.html')
+
+@app.route('/health')
+def health():
+    return jsonify({{
+        "status": "ok", 
+        "agent": "{config['name']}", 
+        "version": "1.0",
+        "agent_id": "{agent_id}",
+        "cors_enabled": True
+    }})
+
+@app.route('/chat', methods=['POST', 'OPTIONS'])
+def chat():
+    if request.method == 'OPTIONS':
+        return jsonify({{'status': 'ok'}}), 200
+    
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '')
+        
+        if not user_message:
+            return jsonify({{'error': 'Mensagem obrigatória'}}), 400
+        
+        api_key = get_claude_api_key()
+        if not api_key:
+            return jsonify({{'error': 'API key não encontrada'}}), 500
+            
+        system_prompt = """{generated_prompt}"""
+        
+        response = call_claude_api(api_key, system_prompt, user_message)
+        
+        return jsonify({{
+            'response': response,
+            'agent_name': '{config['name']}',
+            'agent_id': '{agent_id}',
+            'version': '1.0'
+        }})
+        
+    except Exception as e:
+        return jsonify({{'error': str(e)[:100]}}), 500
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=8080)
+'''
+        
+        return {
+            'agent_id': agent_id,
+            'main_py': main_py_template,
+            'requirements_txt': '''Flask==2.3.3
+flask-cors==4.0.0
+google-cloud-secret-manager==2.16.4
+requests==2.31.0
+gunicorn==21.2.0''',
+            'dockerfile': '''FROM python:3.9-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8080
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "300", "main:app"]''',
+            'chat_html': f'''<!DOCTYPE html>
+<html><head><title>{config['name']}</title></head>
+<body><h1>{config['name']}</h1><p>Use via API /chat</p></body></html>'''
+        }
+
+# Instanciar gerador
+generator = AgentGenerator()
+
+# Rotas para servir as interfaces
+@app.route('/')
+def dashboard():
+    return send_from_directory('dashboard', 'agents_list.html')
+
+@app.route('/create')
+def create_agent_page():
+    return send_from_directory('playbook', 'create_agent.html')
+
+@app.route('/edit')
+def edit_agent_page():
+    return send_from_directory('admin', 'edit_agent.html')
+
+# API para criar novo agente
+@app.route('/api/create-agent', methods=['POST'])
+def api_create_agent():
+    try:
+        config = request.get_json()
+        
+        # Gerar prompt personalizado com Claude
+        generated_prompt = generator.generate_agent_prompt(config)
+        if not generated_prompt:
+            return jsonify({'error': 'Erro ao gerar prompt'}), 500
+        
+        # Gerar código do agente
+        agent_code = generator.create_agent_code(config, generated_prompt)
+        
+        # TODO: Deploy automático no Cloud Run
+        # TODO: Criar dataset BigQuery
+        # TODO: Salvar metadados
+        
+        return jsonify({
+            'success': True,
+            'agent_id': agent_code['agent_id'],
+            'message': 'Agente criado com sucesso',
+            'generated_prompt': generated_prompt[:200] + '...'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# API para listar agentes
+@app.route('/api/agents')
+def api_list_agents():
+    """Listar agentes do BigQuery"""
+    try:
+        query = """
+        SELECT agent_id, agent_name, agent_type, specialization, status,
+               cloud_run_url, created_at
+        FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE status = 'active'
+        ORDER BY created_at DESC
+        """
+        
+        agents = []
+        for row in generator.bq_client.query(query):
+            agents.append({
+                'id': row.agent_id,
+                'name': row.agent_name,
+                'type': row.agent_type,
+                'status': row.status,
+                'url': row.cloud_run_url,
+                'conversations': 0,
+                'uptime': 100
+            })
+        
+        return jsonify(agents)
+    except Exception as e:
+        print(f"Erro ao listar agentes: {e}")
+        return jsonify([])
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=8080)
+
+# API para obter detalhes de um agente específico
+@app.route('/api/agent/<agent_id>')
+def api_get_agent(agent_id):
+    try:
+        query = f"""
+        SELECT agent_id, agent_name, agent_type, specialization, 
+               conversation_style, status, cloud_run_url, created_at, 
+               updated_at, description, prompt_template
+        FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        result = list(generator.bq_client.query(query))
+        if result:
+            agent = result[0]
+            return jsonify({
+                'success': True,
+                'agent': {
+                    'id': agent.agent_id,
+                    'name': agent.agent_name,
+                    'type': agent.agent_type,
+                    'specialization': agent.specialization,
+                    'conversation_style': agent.conversation_style,
+                    'status': agent.status,
+                    'url': agent.cloud_run_url,
+                    'created_at': agent.created_at.isoformat() if agent.created_at else None,
+                    'updated_at': agent.updated_at.isoformat() if agent.updated_at else None,
+                    'description': agent.description,
+                    'prompt_template': agent.prompt_template
+                }
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# API para editar um agente
+@app.route('/api/agent/<agent_id>', methods=['PUT'])
+def api_edit_agent(agent_id):
+    try:
+        data = request.get_json()
+        
+        # Construir query de update dinamicamente
+        updates = []
+        if 'name' in data:
+            updates.append(f"agent_name = '{data['name']}'")
+        if 'specialization' in data:
+            updates.append(f"specialization = '{data['specialization']}'")
+        if 'conversation_style' in data:
+            updates.append(f"conversation_style = '{data['conversation_style']}'")
+        if 'description' in data:
+            updates.append(f"description = '{data['description']}'")
+        if 'prompt_template' in data:
+            updates.append(f"prompt_template = '{data['prompt_template']}'")
+            
+        if not updates:
+            return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
+            
+        updates.append("updated_at = CURRENT_TIMESTAMP()")
+        
+        query = f"""
+        UPDATE `flower-ai-generator.ai_generator_metadata.agents`
+        SET {', '.join(updates)}
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        job = generator.bq_client.query(query)
+        job.result()  # Wait for the job to complete
+        
+        if job.num_dml_affected_rows > 0:
+            return jsonify({
+                'success': True,
+                'message': f'Agente {agent_id} atualizado com sucesso',
+                'affected_rows': job.num_dml_affected_rows
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# API para deletar um agente
+@app.route('/api/agent/<agent_id>', methods=['DELETE'])
+def api_delete_agent(agent_id):
+    try:
+        # Primeiro verificar se agente existe
+        check_query = f"""
+        SELECT agent_id, agent_name, cloud_run_url
+        FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        result = list(generator.bq_client.query(check_query))
+        if not result:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+            
+        agent = result[0]
+        
+        # TODO: Deletar Cloud Run service se existir
+        # if agent.cloud_run_url:
+        #     subprocess.run(['gcloud', 'run', 'services', 'delete', agent_id, '--region=southamerica-east1', '--quiet'])
+        
+        # Deletar do BigQuery
+        delete_query = f"""
+        DELETE FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        job = generator.bq_client.query(delete_query)
+        job.result()
+        
+        # Deletar conversas relacionadas
+        delete_conversations = f"""
+        DELETE FROM `flower-ai-generator.ai_generator_metadata.conversations`
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        job2 = generator.bq_client.query(delete_conversations)
+        job2.result()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Agente {agent.agent_name} deletado com sucesso',
+            'deleted_agent': agent.agent_name
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=8080)
+
+@app.route('/api/create-agent', methods=['POST'])
+def api_create_agent():
+    """Criar novo agente - VERSÃO CORRIGIDA"""
+    try:
+        config = request.get_json()
+        print(f"Recebido config: {config}")
+        
+        # Se o usuário enviou prompt, usar ele. Senão, criar um padrão
+        if 'system_prompt' in config and config['system_prompt']:
+            generated_prompt = config['system_prompt']
+            print("Usando prompt fornecido pelo usuário")
+        else:
+            # Fallback: criar prompt padrão sem chamar Claude
+            generated_prompt = f"""Você é {config['name']}, especializado em {config['specialization']}.
+
+Características:
+- Área de atuação: {config['specialization']}
+- Estilo de conversa: {config['conversation_style']}
+- Sempre seja profissional, útil e preciso
+
+Responda às perguntas dos usuários com base em sua especialização e conhecimento."""
+            print("Usando prompt padrão como fallback")
+        
+        # Gerar ID do agente
+        agent_id = config['name'].lower().replace(' ', '-').replace('.', '').replace('(', '').replace(')', '')
+        
+        # Inserir no BigQuery
+        row = {
+            "agent_id": agent_id,
+            "agent_name": config['name'],
+            "agent_type": config['type'],
+            "specialization": config['specialization'],
+            "conversation_style": config['conversation_style'],
+            "status": "pending",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "creator_email": "ai-generator@flowerdash.com.br",
+            "prompt_template": generated_prompt,
+            "description": f"Agente {config['type']} especializado em {config['specialization']}"
+        }
+        
+        table_ref = f"{PROJECT_ID}.ai_generator_metadata.agents"
+        generator.bq_client.insert_rows_json(table_ref, [row])
+        
+        return jsonify({
+            'success': True,
+            'agent_id': agent_id,
+            'message': 'Agente criado com sucesso',
+            'generated_prompt': generated_prompt[:100] + '...'
+        })
+        
+    except Exception as e:
+        print(f"Erro detalhado na criação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

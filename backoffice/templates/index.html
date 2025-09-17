@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-dashboard me-2"></i>Dashboard de Agentes</h1>
+            <a href="{{ url_for('create_agent_form') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Criar Novo Agente
+            </a>
+        </div>
+
+        {% if agents %}
+        <div class="row">
+            {% for agent in agents %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ agent.agent_name }}</h5>
+                        <span class="badge bg-{{ 'success' if agent.status == 'active' else 'warning' }}">
+                            {{ agent.status }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong>Tipo:</strong> {{ agent.agent_type }}<br>
+                            <strong>Criado:</strong> {{ agent.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </p>
+                        {% if agent.cloud_run_url %}
+                        <a href="{{ agent.cloud_run_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-external-link-alt me-1"></i>Acessar
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-cog me-1"></i>Gerenciar
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-robot fa-5x text-muted mb-3"></i>
+            <h3>Nenhum agente criado ainda</h3>
+            <p class="text-muted mb-4">Comece criando seu primeiro agente inteligente!</p>
+            <a href="{{ url_for('create_agent_form') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>Criar Primeiro Agente
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

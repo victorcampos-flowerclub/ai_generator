@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""
+AI Agent Generator - Backend Principal
+Sistema para criar e gerenciar agentes de IA especializados
+"""
+
+import os
+import json
+import requests
+from datetime import datetime
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
+from google.cloud import secretmanager, bigquery, storage
+import tempfile
+import subprocess
+
+app = Flask(__name__)
+CORS(app)
+
+# Configurações globais
+PROJECT_ID = 'flower-ai-generator'
+REGION = 'southamerica-east1'
+CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+
+class AgentGenerator:
+    def __init__(self):
+        self.bq_client = bigquery.Client(project=PROJECT_ID)
+        self.storage_client = storage.Client(project=PROJECT_ID)
+        
+    def get_claude_api_key(self):
+        try:
+            secret_client = secretmanager.SecretManagerServiceClient()
+            name = f"projects/{PROJECT_ID}/secrets/claude-api-key/versions/latest"
+            response = secret_client.access_secret_version(request={"name": name})
+            return response.payload.data.decode("UTF-8").strip()
+        except Exception as e:
+            print(f"Erro ao obter API key: {e}")
+            return None
+
+# Instanciar gerador global
+generator = AgentGenerator()
+
+# ROUTES
+@app.route('/')
+def index():
+    return jsonify({'status': 'AI Agent Generator Backend', 'version': '1.0'})
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
+
+@app.route('/api/agents')
+def api_list_agents():
+    """Listar agentes do BigQuery"""
+    try:
+        query = """
+        SELECT agent_id, agent_name, agent_type, specialization, status,
+               cloud_run_url, created_at
+        FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE status IN ('active', 'pending')
+        ORDER BY created_at DESC
+        """
+        
+        agents = []
+        for row in generator.bq_client.query(query):
+            agents.append({
+                'id': row.agent_id,
+                'name': row.agent_name,
+                'type': row.agent_type,
+                'status': row.status,
+                'url': row.cloud_run_url,
+                'conversations': 0,
+                'uptime': 100
+            })
+        
+        return jsonify(agents)
+    except Exception as e:
+        print(f"Erro ao listar agentes: {e}")
+        return jsonify([])
+
+@app.route('/api/create-agent', methods=['POST'])
+def api_create_agent():
+    """Criar novo agente"""
+    try:
+        config = request.get_json()
+        
+        # Gerar prompt padrão
+        if 'system_prompt' in config and config['system_prompt']:
+            generated_prompt = config['system_prompt']
+        else:
+            generated_prompt = f"""Você é {config['name']}, especializado em {config['specialization']}.
+
+Características:
+- Área de atuação: {config['specialization']}
+- Estilo de conversa: {config['conversation_style']}
+- Sempre seja profissional, útil e preciso
+
+Responda às perguntas dos usuários com base em sua especialização."""
+        
+        agent_id = config['name'].lower().replace(' ', '-').replace('.', '').replace('(', '').replace(')', '')
+        
+        row = {
+            "agent_id": agent_id,
+            "agent_name": config['name'],
+            "agent_type": config['type'],
+            "specialization": config['specialization'],
+            "conversation_style": config['conversation_style'],
+            "status": "active",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "creator_email": "ai-generator@flowerdash.com.br",
+            "prompt_template": generated_prompt,
+            "description": f"Agente {config['type']} especializado em {config['specialization']}"
+        }
+        
+        table_ref = f"{PROJECT_ID}.ai_generator_metadata.agents"
+        insert_agent_batch(generator.bq_client, table_ref, row)
+        
+        return jsonify({
+            'success': True,
+            'agent_id': agent_id,
+            'message': 'Agente criado com sucesso'
+        })
+        
+    except Exception as e:
+        print(f"Erro na criação: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/agent/<agent_id>')
+def api_get_agent(agent_id):
+    """Obter detalhes de um agente"""
+    try:
+        query = f"""
+        SELECT agent_id, agent_name, agent_type, specialization, 
+               conversation_style, status, cloud_run_url, created_at, 
+               updated_at, description, prompt_template
+        FROM `flower-ai-generator.ai_generator_metadata.agents`
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        result = list(generator.bq_client.query(query))
+        if result:
+            agent = result[0]
+            return jsonify({
+                'success': True,
+                'agent': {
+                    'id': agent.agent_id,
+                    'name': agent.agent_name,
+                    'type': agent.agent_type,
+                    'specialization': agent.specialization,
+                    'conversation_style': agent.conversation_style,
+                    'status': agent.status,
+                    'url': agent.cloud_run_url,
+                    'created_at': agent.created_at.isoformat() if agent.created_at else None,
+                    'updated_at': agent.updated_at.isoformat() if agent.updated_at else None,
+                    'description': agent.description,
+                    'prompt_template': agent.prompt_template
+                }
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/agent/<agent_id>', methods=['PUT'])
+def api_edit_agent(agent_id):
+    """Editar um agente"""
+    try:
+        data = request.get_json()
+        
+        updates = []
+        if 'name' in data:
+            updates.append(f"agent_name = '{data['name']}'")
+        if 'specialization' in data:
+            updates.append(f"specialization = '{data['specialization']}'")
+        if 'conversation_style' in data:
+            updates.append(f"conversation_style = '{data['conversation_style']}'")
+        if 'description' in data:
+            updates.append(f"description = '{data['description']}'")
+        if 'prompt_template' in data:
+            updates.append(f"prompt_template = '{data['prompt_template']}'")
+            
+        if not updates:
+            return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
+            
+        updates.append("updated_at = CURRENT_TIMESTAMP()")
+        
+        query = f"""
+        UPDATE `flower-ai-generator.ai_generator_metadata.agents`
+        SET {', '.join(updates)}
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        job = generator.bq_client.query(query)
+        job.result()
+        
+        if job.num_dml_affected_rows > 0:
+            return jsonify({
+                'success': True,
+                'message': f'Agente {agent_id} atualizado com sucesso',
+                'affected_rows': job.num_dml_affected_rows
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/agent/<agent_id>', methods=['DELETE'])
+def api_delete_agent(agent_id):
+    """Deletar um agente - versão simples"""
+    try:
+        # Por enquanto, apenas soft delete para evitar problemas de streaming buffer
+        query = f"""
+        UPDATE `flower-ai-generator.ai_generator_metadata.agents`
+        SET status = 'deleted', updated_at = CURRENT_TIMESTAMP()
+        WHERE agent_id = '{agent_id}'
+        """
+        
+        job = generator.bq_client.query(query)
+        job.result()
+        
+        if job.num_dml_affected_rows > 0:
+            return jsonify({
+                'success': True,
+                'message': f'Agente {agent_id} removido com sucesso'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Agente não encontrado'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=8080)
+
+def insert_agent_batch(bq_client, table_ref, row_data):
+    """Inserção batch que permite DELETE/UPDATE imediato"""
+    import tempfile
+    import json
+    import os
+    
+    try:
+        # Criar arquivo temporário
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(row_data, f)
+            temp_file = f.name
+        
+        # Configurar job de load
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        )
+        
+        # Load job - permite operações DML imediatas
+        with open(temp_file, 'rb') as f:
+            job = bq_client.load_table_from_file(f, table_ref, job_config=job_config)
+        
+        job.result()  # Aguardar completar
+        os.unlink(temp_file)  # Limpar arquivo
+        
+        return True
+        
+    except Exception as e:
+        print(f"Erro no batch insert: {e}")
+        # Fallback para método original se falhar
+        bq_client.insert_rows_json(table_ref, [row_data])
+        return False

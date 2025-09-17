@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Generator - Criar Novo Agente</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .file-upload {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload:hover {
+            border-color: #4f46e5;
+            background-color: #f8fafc;
+        }
+        
+        .file-upload input {
+            display: none;
+        }
+        
+        .btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .progress {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            background: #e5e7eb;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: #4f46e5;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Agent Generator</h1>
+            <p>Crie seu agente de IA especializado em minutos</p>
+        </div>
+        
+        <div class="form-container">
+            <form id="agentForm">
+                <!-- Configurações Básicas -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="agentName">Nome do Agente</label>
+                        <input type="text" id="agentName" name="agentName" placeholder="ex: Dr. Silva" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="agentType">Tipo/Especialização</label>
+                        <select id="agentType" name="agentType" required>
+                            <option value="">Selecione...</option>
+                            <option value="medico">Médico Especialista</option>
+                            <option value="cto">CTO/Tecnologia</option>
+                            <option value="vendas">Especialista em Vendas</option>
+                            <option value="executivo">Executivo/CEO</option>
+                            <option value="advogado">Advogado Especialista</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="specialization">Especialização Detalhada</label>
+                    <input type="text" id="specialization" name="specialization" placeholder="ex: Cardiologista com foco em arritmias" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="conversationStyle">Estilo de Conversa</label>
+                    <select id="conversationStyle" name="conversationStyle" required>
+                        <option value="">Selecione...</option>
+                        <option value="formal">Formal e Técnico</option>
+                        <option value="casual">Casual e Amigável</option>
+                        <option value="professional">Profissional</option>
+                        <option value="educational">Educativo/Didático</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="systemPrompt">Prompt do Sistema (Opcional)</label>
+                    <textarea id="systemPrompt" name="systemPrompt" placeholder="Deixe vazio para geração automática pelo Claude..."></textarea>
+                </div>
+                
+                <!-- Upload de Documentos -->
+                <div class="form-group">
+                    <label>Documentos de Conhecimento Específico</label>
+                    <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt">
+                        <p>📁 Clique para selecionar arquivos</p>
+                        <p style="font-size: 14px; color: #6b7280; margin-top: 10px;">
+                            Suporte: PDF, DOC, DOCX, TXT
+                        </p>
+                    </div>
+                    <div id="fileList"></div>
+                </div>
+                
+                <!-- Ações -->
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" onclick="previewAgent()">
+                        Preview Agente
+                    </button>
+                    <button type="submit" class="btn">
+                        Gerar Agente
+                    </button>
+                </div>
+                
+                <!-- Progress -->
+                <div class="progress" id="progress">
+                    <p>Gerando seu agente...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Configuração da API do gerador
+        const API_BASE = 'http://localhost:8080'; // Será o backend do gerador
+        
+        // Gerenciar upload de arquivos
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            Array.from(e.target.files).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.style.cssText = 'padding: 10px; margin: 5px 0; background: #f3f4f6; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;';
+                fileItem.innerHTML = `
+                    <span>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    <button type="button" onclick="this.parentElement.remove()" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                        Remover
+                    </button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        });
+        
+        // Preview do agente
+        function previewAgent() {
+            const formData = new FormData(document.getElementById('agentForm'));
+            const agentName = formData.get('agentName');
+            const specialization = formData.get('specialization');
+            
+            if (!agentName || !specialization) {
+                alert('Preencha pelo menos o nome e especialização do agente');
+                return;
+            }
+            
+            // Simular preview
+            alert(`Preview do Agente:
+            
+Nome: ${agentName}
+Especialização: ${specialization}
+Tipo: ${formData.get('agentType')}
+Estilo: ${formData.get('conversationStyle')}
+
+O agente será criado com essas configurações.`);
+        }
+        
+        // Enviar formulário
+        document.getElementById('agentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const progress = document.getElementById('progress');
+            const progressFill = document.getElementById('progressFill');
+            
+            progress.style.display = 'block';
+            
+            // Simular progresso
+            const steps = [
+                {progress: 20, text: 'Processando configurações...'},
+                {progress: 40, text: 'Processando documentos...'},
+                {progress: 60, text: 'Gerando prompt com Claude...'},
+                {progress: 80, text: 'Criando código do agente...'},
+                {progress: 100, text: 'Deployando no Cloud Run...'}
+            ];
+            
+            for (let step of steps) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                progressFill.style.width = step.progress + '%';
+                progress.querySelector('p').textContent = step.text;
+            }
+            
+            alert('Agente criado com sucesso! Redirecionando para o dashboard...');
+            
+            // TODO: Implementar envio real para backend
+            console.log('Form data:', new FormData(this));
+        });
+    </script>
+</body>
+</html>

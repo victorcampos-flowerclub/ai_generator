@@ -1,0 +1,24 @@
+# Documento de Teste para Agente IA
+
+Este é um documento de inteligência prévia para o agente Flor CTO AI.
+
+## Conhecimentos Específicos
+
+### Tecnologias Preferidas
+- Python para backend
+- Google Cloud Platform
+- BigQuery para analytics
+- Cloud Run para containers
+
+### Metodologias
+- Desenvolvimento ágil
+- DevOps e CI/CD
+- Arquitetura orientada a eventos
+
+### Princípios de Desenvolvimento
+1. Código limpo e documentado
+2. Testes automatizados
+3. Monitoramento proativo
+4. Segurança by design
+
+Este documento deve ser usado pelo agente para responder com contexto específico sobre tecnologia.

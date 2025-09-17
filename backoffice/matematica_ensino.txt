@@ -1,0 +1,23 @@
+# Conhecimentos de Matemática - Ensino Médio
+
+## Álgebra
+- Equações do 2º grau
+- Sistemas lineares
+- Progressões aritméticas e geométricas
+
+## Geometria
+- Trigonometria básica
+- Áreas e volumes
+- Geometria analítica
+
+## Análise
+- Funções e gráficos
+- Limites introdutórios
+- Estatística descritiva
+
+## Metodologias de Ensino
+- Aprendizagem ativa
+- Resolução de problemas
+- Uso de tecnologia
+
+Este documento orienta respostas pedagógicas da professora.

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Generator - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 20px 0;
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            font-size: 24px;
+        }
+        
+        .btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+        }
+        
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .agent-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .agent-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        
+        .agent-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .agent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .agent-info h3 {
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        
+        .agent-type {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .agent-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-inactive {
+            background: #fecaca;
+            color: #dc2626;
+        }
+        
+        .agent-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .agent-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>Dashboard - AI Agent Generator</h1>
+            <a href="../playbook/create_agent.html" class="btn">+ Criar Novo Agente</a>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <!-- Estatísticas -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalAgents">1</div>
+                <div class="stat-label">Agentes Criados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeAgents">1</div>
+                <div class="stat-label">Agentes Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalConversations">247</div>
+                <div class="stat-label">Conversas Totais</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalDocuments">12</div>
+                <div class="stat-label">Documentos Processados</div>
+            </div>
+        </div>
+        
+        <!-- Lista de Agentes -->
+        <div class="agents-grid" id="agentsGrid">
+            <!-- Agente Flor (exemplo existente) -->
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="agent-avatar">F</div>
+                    <div class="agent-info">
+                        <h3>Flor CTO AI</h3>
+                        <div class="agent-type">CTO/Tecnologia</div>
+                    </div>
+                </div>
+                
+                <span class="agent-status status-active">ATIVO</span>
+                
+                <div class="agent-metrics">
+                    <div class="metric">
+                        <div class="metric-value">247</div>
+                        <div class="metric-label">Conversas</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">98%</div>
+                        <div class="metric-label">Uptime</div>
+                    </div>
+                </div>
+                
+                <div class="agent-actions">
+                    <a href="https://flor-intelligent-365442086139.southamerica-east1.run.app" target="_blank" class="btn-small btn-primary">
+                        Abrir Chat
+                    </a>
+                    <a href="../admin/edit_agent.html?agent=flor-cto" class="btn-small btn-secondary">
+                        Editar
+                    </a>
+                    <button class="btn-small btn-danger" onclick="confirmDelete('flor-cto')">
+                        Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estado vazio (mostrado quando não há agentes além do Flor) -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <h3>Nenhum agente adicional criado</h3>
+            <p>Crie seu primeiro agente especializado usando o botão acima</p>
+        </div>
+    </div>
+    
+    <script>
+        // Simular dados dos agentes (será substituído por API real)
+        const agents = [
+            {
+                id: 'flor-cto',
+                name: 'Flor CTO AI',
+                type: 'CTO/Tecnologia',
+                status: 'active',
+                conversations: 247,
+                uptime: 98,
+                url: 'https://flor-intelligent-365442086139.southamerica-east1.run.app'
+            }
+            // Novos agentes aparecerão aqui quando criados
+        ];
+        
+        function loadAgents() {
+            // Atualizar estatísticas
+            document.getElementById('totalAgents').textContent = agents.length;
+            document.getElementById('activeAgents').textContent = agents.filter(a => a.status === 'active').length;
+            
+            // Se apenas o agente Flor existe, não mostrar estado vazio
+            if (agents.length === 1) {
+                // Manter interface normal com o agente Flor
+                document.getElementById('emptyState').style.display = 'none';
+            }
+        }
+        
+        function confirmDelete(agentId) {
+            if (agentId === 'flor-cto') {
+                alert('O agente Flor não pode ser excluído - é o agente base do sistema.');
+                return;
+            }
+            
+            if (confirm('Tem certeza que deseja excluir este agente? Esta ação não pode ser desfeita.')) {
+                deleteAgent(agentId);
+            }
+        }
+        
+        function deleteAgent(agentId) {
+            // TODO: Implementar exclusão real
+            console.log('Excluindo agente:', agentId);
+            alert('Agente excluído com sucesso!');
+            loadAgents();
+        }
+        
+        // Carregar dados ao iniciar
+        loadAgents();
+        
+        // Atualizar dados a cada 30 segundos
+        setInterval(loadAgents, 30000);
+    </script>
+</body>
+</html>

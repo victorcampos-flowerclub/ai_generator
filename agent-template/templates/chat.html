@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ agent_name }} - {{ agent_type }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .chat-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .message {
+            margin: 1rem 0;
+            display: flex;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: 1rem;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-bubble {
+            background: #007bff;
+            color: white;
+        }
+        
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .chat-input {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .agent-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .typing-indicator {
+            display: none;
+            align-items: center;
+        }
+        
+        .typing-dots {
+            display: flex;
+            align-items: center;
+        }
+        
+        .typing-dots span {
+            height: 8px;
+            width: 8px;
+            background: #999;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        
+        .welcome-message {
+            text-align: center;
+            color: white;
+            margin: 2rem 0;
+        }
+        
+        .features {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="d-flex align-items-center">
+                <div class="agent-avatar">
+                    {{ agent_name[0].upper() }}
+                </div>
+                <div>
+                    <h5 class="mb-0">{{ agent_name }}</h5>
+                    <small class="text-muted">{{ agent_type.title() }} • Online</small>
+                </div>
+                <div class="ms-auto">
+                    <button class="btn btn-outline-primary btn-sm" onclick="clearChat()">
+                        <i class="fas fa-trash me-1"></i>Limpar Chat
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages -->
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <h3>Olá! Eu sou {{ agent_name }}</h3>
+                <p>Sou um assistente {{ agent_type }} especializado e estou aqui para ajudar você.</p>
+                
+                <div class="features">
+                    <h6><i class="fas fa-brain me-2"></i>Minhas Capacidades:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small><i class="fas fa-check me-1"></i>Análise técnica avançada</small><br>
+                            <small><i class="fas fa-check me-1"></i>Documentação especializada</small><br>
+                        </div>
+                        <div class="col-md-6">
+                            <small><i class="fas fa-check me-1"></i>Suporte personalizado</small><br>
+                            <small><i class="fas fa-check me-1"></i>Contexto preservado</small><br>
+                        </div>
+                    </div>
+                </div>
+                
+                <p><strong>Como posso ajudar você hoje?</strong></p>
+            </div>
+        </div>
+        
+        <!-- Input -->
+        <div class="chat-input">
+            <div class="input-group">
+                <input type="text" class="form-control" id="messageInput" 
+                       placeholder="Digite sua mensagem..." onkeypress="handleKeyPress(event)">
+                <button class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let conversationId = generateUUID();
+        
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Limpar input
+            input.value = '';
+            
+            // Adicionar mensagem do usuário
+            addMessage('user', message);
+            
+            // Mostrar indicador de digitação
+            showTyping();
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_id: conversationId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Esconder indicador de digitação
+                hideTyping();
+                
+                if (data.error) {
+                    addMessage('assistant', 'Desculpe, ocorreu um erro. Tente novamente.');
+                } else {
+                    addMessage('assistant', data.response);
+                    conversationId = data.conversation_id;
+                }
+                
+            } catch (error) {
+                hideTyping();
+                addMessage('assistant', 'Erro de conexão. Verifique sua internet e tente novamente.');
+            }
+        }
+        
+        function addMessage(role, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            if (role === 'assistant') {
+                messageDiv.innerHTML = `
+                    <div class="agent-avatar">{{ agent_name[0].upper() }}</div>
+                    <div class="message-bubble">${content}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-bubble">${content}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function showTyping() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="agent-avatar">{{ agent_name[0].upper() }}</div>
+                <div class="message-bubble">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Mostrar indicador
+            setTimeout(() => {
+                typingDiv.style.display = 'flex';
+            }, 100);
+        }
+        
+        function hideTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        function clearChat() {
+            if (confirm('Tem certeza que deseja limpar o chat?')) {
+                const messagesContainer = document.getElementById('chatMessages');
+                messagesContainer.innerHTML = `
+                    <div class="welcome-message">
+                        <h3>Chat limpo!</h3>
+                        <p>Pronto para uma nova conversa com {{ agent_name }}.</p>
+                    </div>
+                `;
+                conversationId = generateUUID();
+            }
+        }
+        
+        // Focar no input ao carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').focus();
+        });
+    </script>
+</body>
+</html>
